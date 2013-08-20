@@ -419,7 +419,7 @@ sub concat_libvar {
     close($edffh);
     
     # sort variants file
-    system("sort -k1,1n -k2,2n $var_out > $var_out.sorted; mv $var_out.sorted $var_out");
+    system("sort -k1,1 -k2,2n $var_out > $var_out.sorted; mv $var_out.sorted $var_out");
     
     # check the cat files are complete
     my $v_lines = VertRes::IO->new(file => $var_out)->num_lines;
