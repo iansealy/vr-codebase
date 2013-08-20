@@ -36,6 +36,7 @@ while (<$ifh>) {
     my ($chr, $start, $stop, $notes) = split;
     
     $start -= $mask_size;
+    $start = 0 if $start < 0;
     $stop += $mask_size;
     $notes .= ":+/-$mask_size" ;
     
