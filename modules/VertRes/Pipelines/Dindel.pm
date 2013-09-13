@@ -122,6 +122,7 @@ our %options = (simultaneous_jobs => 100,
                 dindel_scripts => $dindel_base,
                 dindel_bin => 'dindel',
                 dindel_args => '--maxRead 5000',
+                windows_per_file => 1000,
                 make_windows_bsub_opts => " -M1400000 -R 'select[mem>1400] rusage[mem=1400]'",
                 realign_windows_bsub_opts => " -q long -M2800000 -R 'select[mem>2800] rusage[mem=2800]'",
                 bsub_opts => '');
@@ -686,9 +687,10 @@ sub make_windows {
 
     my $orig_bsub_opts = $self->{bsub_opts};
     $self->{bsub_opts} = $self->{make_windows_bsub_opts};
+    my $windows_per_file = $self->{windows_per_file};
     
     LSF::run($action_lock, $window_dir, $job_basename, $self,
-             qq{python $self->{dindel_scripts}/makeWindows.py --inputVarFile $var_file --windowFilePrefix $window_dir/window --numWindowsPerFile 1000});
+             qq{python $self->{dindel_scripts}/makeWindows.py --inputVarFile $var_file --windowFilePrefix $window_dir/window --numWindowsPerFile $windows_per_file});
     
     $self->{bsub_opts} = $orig_bsub_opts;
     
