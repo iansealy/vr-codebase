@@ -3,13 +3,13 @@ umask 002
 
 function usage
 {
-    echo "usage: update_db_vrpipe.sh [[-d vrtrack_db_name (optional: -t tax_id -m min_run_id -s study) ]  | [-h]]"
+    echo "usage: update_db_hipsci.sh [[-d vrtrack_db_name -f file_type -g output_location (optional: -t tax_id ) ]  | [-h]]"
 }
 
-TAX=""
+FILE=""
 DB=""
-MIN_RUN=""
-STUDY=""
+TAX=""
+GSF=""
 SPE=""
 while [ "$1" != "" ]; do
     case $1 in
@@ -22,11 +22,11 @@ while [ "$1" != "" ]; do
         -n | --species )        shift
                                                         SPE="-spe $1"
                                 ;;
-        -m | --min )            shift
-        						MIN_RUN="-min $1"
+        -f | --file )           shift
+        						FILE="-f $1"
                                 ;;
-        -s | --study )          shift
-        						STUDY="_$1"
+        -g | --gsf )            shift
+        						GSF="-gsf $1"
                                 ;;
         -h | --help )           usage
                                 exit
@@ -48,11 +48,9 @@ if [ $DBEXISTS -eq 1 ];then
     exit
 fi
 
-ARG_UP="-u -sup -nop -md5 -wdr -trd -v"
+ARG_UP="-u -v"
 
-ROOT="/lustre/scratch105"
-SCRIPTS="/software/vertres/scripts"
-BIN_EXT="/software/vertres/update_pipeline"
+BIN_EXT="/software/vertres/update_pipeline_hipsci"
 DUMPS="/warehouse/g1k-04/sql_dumps/$DB.sql"
 
 export LD_LIBRARY_PATH=/software/badger/lib:/software/oracle_client-10.2.0/lib
@@ -60,8 +58,4 @@ export ORACLE_HOME=/software/oracle_client-10.2.0
 
 mysqldump -u $VRTRACK_RW_USER -p$VRTRACK_PASSWORD -P$VRTRACK_PORT -h$VRTRACK_HOST $DB > $DUMPS
 
-if [ "$STUDY" = "" ]; then
-	cd $BIN_EXT && perl update_pipeline.pl -s $CONF/$DB"_studies" -d $DB $TAX $SPE $MIN_RUN $ARG_UP
-else
-	cd $BIN_EXT && perl update_pipeline.pl -s $CONF/$DB$STUDY -d $DB $TAX $SPE $MIN_RUN $ARG_UP
-fi
+$BIN_EXT/update_pipeline.pl -s $CONF/$DB"_studies" -d $DB $TAX $SPE $FILE $GSF

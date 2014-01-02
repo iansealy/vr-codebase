@@ -41,13 +41,13 @@ sub is_job_array_running
         {
             check_job($job);
         }
-        for (my $i=0; $i<@$ids; $i++)
+        for (my $j=0; $j<@$ids; $j++)
         {
-            my $id = $$ids[$i];
+            my $id = $$ids[$j];
             if ( !exists($$info{$id}) ) { next; }
-            if ( $jobs[$i]{status} ne $No ) { next; }   # the job was submitted multiple times and already has a status
-            if ( $$info{$id}{status}==$Done ) { $jobs[$i]{status} = $Done; }
-            if ( $$info{$id}{status}==$Running ) { $jobs[$i]{status} = $Running; }
+            if ( $jobs[$j]{status} ne $No ) { next; }   # the job was submitted multiple times and already has a status
+            if ( $$info{$id}{status}==$Done ) { $jobs[$j]{status} = $Done; }
+            if ( $$info{$id}{status}==$Running ) { $jobs[$j]{status} = $Running; }
         }
     }
     my $ntodo = 0;
@@ -119,7 +119,8 @@ sub parse_bjobs_l
             $$job{queue} = $1;
         }
         # Tue Mar 19 13:00:35: [685] started on <uk10k-4-1-07>...
-        if ( $lines[$i]=~/^\w+\s+(\w+)\s+(\d+) (\d+):(\d+):(\d+):.+ started on </ ) 
+        # Tue Dec 24 13:12:00: [1] started on 8 Hosts/Processors <8*vr-1-1-05>...
+        if ( $lines[$i]=~/^\w+\s+(\w+)\s+(\d+) (\d+):(\d+):(\d+):.+ started on/ ) 
         {
             $$job{started} = DateTime->new(month=>$months{$1}, day=>$2, hour=>$3, minute=>$4, year=>$year)->epoch;
         }
@@ -186,7 +187,9 @@ sub parse_output
     my $fname = "$output.$jid.o";
     if ( !-e $fname ) { return undef; }
     
-    my $out = {};
+    # if the output file is empty, assume the job is running
+    my $out = { status=>$Running };
+
     open(my $fh,'<',$fname) or confess("$fname: $!");
     while (my $line=<$fh>)
     {
@@ -229,11 +232,26 @@ sub past_limits
     return %out;
 }
 
+our $lsf_limits_unit;
 sub get_lsf_limits_unit
 {
-    my @units = grep { /LSF_UNIT_FOR_LIMITS/ } `lsadmin showconf lim`;
-    if ( @units && $units[0]=~/\s+MB$/ ) { return 'MB'; }
-    return 'kB';
+    if ( defined $lsf_limits_unit ) { return $lsf_limits_unit; }
+    for (my $i=2; $i<15; $i++)
+    {
+        my @units = grep { /LSF_UNIT_FOR_LIMITS/ } `lsadmin showconf lim 2>/dev/null`;
+        if ( $? ) 
+        { 
+            # lasdmin may be temporarily unavailable and return confusing errors:
+            # "Bad host name" or "ls_gethostinfo(): A socket operation has failed: Address already in use"
+            print STDERR "lsadmin failed, trying again in $i sec...\n";
+            sleep $i; 
+            next; 
+        }
+        if ( @units && $units[0]=~/\s+MB$/ ) { $lsf_limits_unit = 'MB'; }
+        else { $lsf_limits_unit = 'kB'; }
+        return $lsf_limits_unit;
+    }
+    confess("lsadmin showconf lim failed repeatedly");
 }
 
 sub run_array
@@ -281,6 +299,27 @@ sub run_array
             my $lmem  = $units eq 'kB' ? $mem*1000 : $mem;
             $bsub_opts = sprintf " -M%d -R 'select[type==X86_64 && mem>%d] rusage[mem=%d]'", $lmem,$mem,$mem; 
         }
+    }
+    if ( !defined($$opts{queue}) ) 
+    {            
+        if ( defined($$opts{runtime}) ) 
+        { 
+            if ( $$opts{runtime} <= 720.0 ) { $$opts{queue} = 'normal'; }
+            elsif ( $$opts{runtime} <= 60*24*2 ) { $$opts{queue} = 'long'; }
+            else { $$opts{queue} = 'basement'; }
+        }
+        else 
+        { 
+            $$opts{queue} = 'normal';
+        }
+    }
+    if ( defined($$opts{queue}) ) 
+    {
+        $bsub_opts .= " -q $$opts{queue}";
+    }
+    if ( defined($$opts{cpus}) ) 
+    {
+        $bsub_opts .= " -n $$opts{cpus} -R 'span[hosts=1]'";
     }
     my $bsub_cmd  = qq[bsub -J '${job_name}[$bsub_ids]' -e $job_name.\%I.e -o $job_name.\%I.o $bsub_opts '$cmd'];
 
