@@ -98,7 +98,9 @@ sub job_in_queue
     while (my $line=<$fh>)
     {
         # Subject: Job 822187: <_2215_1_graphs> Done
-        if ( $line =~ /^Subject: Job $jid: \<[^>]+\> (\S+)/ )
+        # or
+        # Subject: Job 822187: <_2215_1_graphs> in cluster <farm3> Done
+        if ( $line =~ /^Subject: Job $jid: \<.+\> (\S+)/ )
         {
             # It is unlikely that there had been two jobs with the same IDs' 
             #   but the last wins anyway.
