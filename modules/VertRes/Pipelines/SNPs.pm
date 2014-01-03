@@ -1175,7 +1175,7 @@ sub gatk
     }
     if ( !exists($$gopts{dbsnp}) )
     {
-        if ( exists($$self{dbSNP_rod}) ) { 
+        if ( exists($$self{dbSNP_rod}) && $$self{dbSNP_rod}) { 
             $$gopts{dbsnp} = $$self{dbSNP_rod}; 
             $$self{have_dbSNP} = 1;
         }
